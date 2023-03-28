@@ -1,33 +1,25 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use futures_util::{SinkExt, StreamExt, TryFutureExt};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
 
-type Users = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<Message>>>>;
-type Usernames = Arc<RwLock<Vec<String>>>;
+use requests_handler::RequestsHandler;
+
+use crate::requests_handler;
 
 #[derive(Clone)]
 pub struct SocketHandler {
-    pub connected_users: Users,
-    logged_in_clients: Usernames,
-    logged_in_admins: Usernames,
+    requests_handler: RequestsHandler,
 }
 
 impl SocketHandler {
     pub fn new() -> SocketHandler {
         SocketHandler {
-            connected_users: Users::default(),
-            logged_in_clients: Usernames::default(),
-            logged_in_admins: Usernames::default()
+            requests_handler: RequestsHandler::new(),
         }
     }
 
     pub async fn handle_connection(self, ws: WebSocket, username: String) {
-        println!("New connection: {}", username);
-
         // Split the socket into a sender and receive of messages.
         let (mut user_ws_tx, mut user_ws_rx) = ws.split();
 
@@ -49,7 +41,7 @@ impl SocketHandler {
         });
 
         // Save the sender in our list of connected users.
-        self.connected_users.write().await.insert(username.clone(), tx);
+        self.requests_handler.handle_new_socket_connection(&username, &tx).await;
 
         // Return a `Future` that is basically a state machine managing
         // this specific user's connection.
@@ -57,7 +49,6 @@ impl SocketHandler {
         // Every time the user sends a message, broadcast it to
         // all other users...
         while let Some(result) = user_ws_rx.next().await {
-            println!("Received message: {:?}", result);
             let msg = match result {
                 Ok(msg) => msg,
                 Err(e) => {
@@ -65,39 +56,15 @@ impl SocketHandler {
                     break;
                 }
             };
-            self.send_message(&username, msg).await;
+
+            if msg.is_text() {
+                self.requests_handler.handle_request(msg, &username).await;
+            }
         }
 
         // user_ws_rx stream will keep processing as long as the user stays
         // connected. Once they disconnect, then...
-        self.handle_disconnection(&username).await;
-    }
-
-    async fn send_message(&self, username: &String, msg: Message) {
-        let msg = if let Ok(s) = msg.to_str() {
-            s
-        } else {
-            return;
-        };
-
-        let new_msg = format!("<User#{}>: {}", username, msg);
-
-        // New message from this user, send it to everyone else (except same uid)...
-        for (&ref uid, tx) in self.connected_users.read().await.iter() {
-            println!("Sending message to: {}", uid);
-            if username != uid {
-                if let Err(_disconnected) = tx.send(Message::text(new_msg.clone())) {
-                    // The tx is disconnected, our `user_disconnected` code
-                    // should be happening in another task, nothing more to
-                    // do here.
-                }
-            }
-        }
-    }
-
-    async fn handle_disconnection(&self, username: &String) {
-        self.connected_users.write().await.remove(username);
-
+        self.requests_handler.handle_disconnected_socket(&username).await;
     }
 }
 

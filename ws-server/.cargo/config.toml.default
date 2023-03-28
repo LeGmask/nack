@@ -1,0 +1,6 @@
+[build]
+jobs = 16
+
+[env]
+CLIENT_KEY =
+ADMIN_KEY =

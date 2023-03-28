@@ -6,8 +6,16 @@
 	let message = '';
 
 	function connect() {
-		socket = new WebSocket('ws://127.0.0.1:3030/chat/' + name);
+		socket = new WebSocket('ws://127.0.0.1:3030/socket/' + name);
 		socket.onopen = () => {
+			socket.send(
+				JSON.stringify({
+					action: 'auth_request',
+					data: {
+						app_key: "wR@aF#EVP%42Eh"
+					}
+				})
+			)
 			console.log('connected');
 			connected = true;
 		};
