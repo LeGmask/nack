@@ -78,12 +78,12 @@ impl RequestsHandler {
     }
 
     pub async fn handle_new_socket_connection(&self, username: &String, tx: &mpsc::UnboundedSender<Message>) {
-        println!("{} connected", username);
+        tracing::info!("{} connected", username);
         self.connected_users.write().await.insert(username.clone(), tx.clone());
     }
 
     pub async fn handle_disconnected_socket(&self, username: &String) {
-        println!("{} disconnected", username);
+        tracing::info!("{} disconnected", username);
         self.connected_users.write().await.remove(username);
 
         // if user is logged in, remove him from the logged in users list
@@ -98,20 +98,22 @@ impl RequestsHandler {
     }
 
     pub async fn handle_request(&self, message: Message, username: &String) {
+        tracing::debug!("Received message: {:?}", message);
+
         let parsed_message: BasicRequest = match serde_json::from_str(message.to_str().unwrap()) {
             Ok(parsed_message) => parsed_message,
             Err(_) => return, // If the message is not a valid JSON, ignore it
         };
 
-        println!("Received message: {:?}", parsed_message);
-        println!("Action: {:?}", parsed_message.action);
+        tracing::debug!("Parsed message: {:?}", parsed_message);
+        tracing::info!("New action request: {:?}", parsed_message.action);
 
         // dispatch action to the corresponding function
         match RequestActionTypes::from_str(&*parsed_message.action) {
             Ok(RequestActionTypes::AuthRequest) => self.handle_auth_request(parsed_message.data, username).await,
             Ok(RequestActionTypes::GetClientsRequest) => self.handle_get_clients_request(username).await,
             Ok(RequestActionTypes::RunRequest) => self.handle_run_request(parsed_message.data, username).await,
-            Err(_) => println!("Invalid action {:?}", parsed_message.action),
+            Err(_) => tracing::error!("Invalid action {:?}", parsed_message.action),
         }
     }
 
@@ -119,7 +121,7 @@ impl RequestsHandler {
         match self.connected_users.read().await.get(username) {
             Some(tx) => Some(tx.clone()),
             None => {
-                println!("{} is not connected", username);
+                tracing::info!("{} is not connected", username);
                 None
             }
         }
@@ -138,7 +140,7 @@ impl RequestsHandler {
 
     async fn handle_get_clients_request(&self, username: &String) {
         if !self.logged_in_admins.read().await.contains(username) {
-            println!("{} is not an admin", username);
+            tracing::info!("{} is not an admin", username);
             return;
         }
 
@@ -154,7 +156,7 @@ impl RequestsHandler {
         let data = match serde_json::from_value::<AuthRequestBody>(data) {
             Ok(auth_request_body) => auth_request_body,
             Err(_) => {
-                println!("Invalid auth request body");
+                tracing::info!("Invalid auth request");
                 return;
             }
         };
@@ -173,7 +175,7 @@ impl RequestsHandler {
                 ).await;
             }
             env!("ADMIN_KEY") => self.logged_in_admins.write().await.push(username.clone()),
-            _ => println!("Invalid app key"),
+            _ => tracing::error!("Invalid app key"),
         }
     }
 
@@ -181,7 +183,7 @@ impl RequestsHandler {
         let data = match serde_json::from_value::<RunRequestBody>(data) {
             Ok(run_request_body) => run_request_body,
             Err(_) => {
-                println!("Invalid run request body");
+                tracing::error!("Invalid run request body");
                 return;
             }
         };
@@ -190,12 +192,12 @@ impl RequestsHandler {
         let module = data.module;
         let params = data.params;
 
-        println!("Target: {}", target);
-        println!("Module: {}", module);
-        println!("Params: {:?}", params);
+        tracing::info!("Target: {}", target);
+        tracing::info!("Module: {}", module);
+        tracing::info!("Params: {:?}", params);
 
         if !self.logged_in_clients.read().await.contains(&target) {
-            println!("{} is not a client", target);
+            tracing::error!("{} is not a client", target);
             self.send_messages(
                 &vec![username.clone()],
                 &BasicRequestResponse::new(

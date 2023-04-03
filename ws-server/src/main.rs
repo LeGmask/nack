@@ -7,6 +7,7 @@ mod requests_handler;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
     let socket_handler = SocketHandler::new();
 
     // Turn our "state" into a new Filter...

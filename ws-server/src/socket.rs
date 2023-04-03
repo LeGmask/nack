@@ -1,4 +1,5 @@
 use futures_util::{SinkExt, StreamExt, TryFutureExt};
+use nanoid::nanoid;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
@@ -20,6 +21,9 @@ impl SocketHandler {
     }
 
     pub async fn handle_connection(self, ws: WebSocket, username: String) {
+        // Adding a random string to the username to make it unique
+        let username = format!("{}-{}", username, nanoid!(5));
+
         // Split the socket into a sender and receive of messages.
         let (mut user_ws_tx, mut user_ws_rx) = ws.split();
 
@@ -34,7 +38,7 @@ impl SocketHandler {
                 user_ws_tx
                     .send(message)
                     .unwrap_or_else(|e| {
-                        eprintln!("websocket send error: {}", e);
+                        tracing::error!("websocket send error: {}", e);
                     })
                     .await;
             }
@@ -52,7 +56,7 @@ impl SocketHandler {
             let msg = match result {
                 Ok(msg) => msg,
                 Err(e) => {
-                    eprintln!("websocket error(uid={}): {}", username, e);
+                    tracing::error!("websocket error(uid={}): {}", username, e);
                     break;
                 }
             };
