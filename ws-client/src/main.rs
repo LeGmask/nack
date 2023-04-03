@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::{unbounded_channel};
 use tokio_stream::wrappers::UnboundedReceiverStream;
