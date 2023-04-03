@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/ws-server/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/ws-server/target" />
       <excludeFolder url="file://$MODULE_DIR$/ws-client/target" />
+      <excludeFolder url="file://$MODULE_DIR$/frontend/dist" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

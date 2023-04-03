@@ -18,6 +18,7 @@ pub(crate) enum RequestActionTypes {
     AuthRequest,
     GetClientsRequest,
     RunRequest,
+    RunResponse,
 }
 
 
@@ -89,6 +90,9 @@ impl RequestsHandler {
         // if user is logged in, remove him from the logged in users list
         if self.logged_in_clients.read().await.contains(username) {
             self.logged_in_clients.write().await.retain(|x| x != username);
+
+            // propagate the new list of logged in users to all the admins
+            self.send_clients_updates().await;
         }
 
         // if admin is logged in, remove him from the logged in admin list
@@ -113,8 +117,21 @@ impl RequestsHandler {
             Ok(RequestActionTypes::AuthRequest) => self.handle_auth_request(parsed_message.data, username).await,
             Ok(RequestActionTypes::GetClientsRequest) => self.handle_get_clients_request(username).await,
             Ok(RequestActionTypes::RunRequest) => self.handle_run_request(parsed_message.data, username).await,
+            Ok(RequestActionTypes::RunResponse) => self.handle_run_response(parsed_message.data).await,
             Err(_) => tracing::error!("Invalid action {:?}", parsed_message.action),
         }
+    }
+
+    async fn send_clients_updates(&self) {
+        self.send_messages(
+            &self.logged_in_admins.read().await.clone(),
+            &BasicRequestResponse::new(
+                "clients_update".to_string(),
+                serde_json::json!({
+                            "connected_clients": self.logged_in_clients.read().await.clone(),
+                        }),
+            ).to_json_string(),
+        ).await;
     }
 
     async fn get_tx(&self, username: &String) -> Option<mpsc::UnboundedSender<Message>> {
@@ -164,15 +181,7 @@ impl RequestsHandler {
         match data.app_key.as_str() {
             env!("CLIENT_KEY") => {
                 self.logged_in_clients.write().await.push(username.clone());
-                self.send_messages(
-                    &self.logged_in_admins.read().await.clone(),
-                    &BasicRequestResponse::new(
-                        "new_client_connected".to_string(),
-                        serde_json::json!({
-                            "connected_clients": self.logged_in_clients.read().await.clone(),
-                        }),
-                    ).to_json_string(),
-                ).await;
+                self.send_clients_updates().await; // propagate the new list of logged in users to all the admins
             }
             env!("ADMIN_KEY") => self.logged_in_admins.write().await.push(username.clone()),
             _ => tracing::error!("Invalid app key"),
@@ -219,6 +228,17 @@ impl RequestsHandler {
                     "module": module,
                     "params": params,
                 }),
+            ).to_json_string(),
+        ).await;
+    }
+
+    async fn handle_run_response(&self, data: Value) {
+        // propagate the response to all the admins
+        self.send_messages(
+            &self.logged_in_admins.read().await.clone(),
+            &BasicRequestResponse::new(
+                "run_response".to_string(),
+                data,
             ).to_json_string(),
         ).await;
     }

@@ -1,0 +1,5 @@
+[build]
+jobs = 16
+
+[env]
+APP_KEY = "YSjrR%7M6aa5X&"
