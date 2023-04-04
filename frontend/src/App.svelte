@@ -6,7 +6,7 @@
 	let message = '';
 
 	function connect() {
-		socket = new WebSocket('ws://127.0.0.1:3030/socket/' + name);
+		socket = new WebSocket('ws://192.168.68.115:3030/socket/' + name);
 		socket.onopen = () => {
 			socket.send(
 				JSON.stringify({

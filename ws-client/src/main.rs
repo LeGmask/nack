@@ -1,9 +1,10 @@
 #![windows_subsystem = "windows"]
 
 use futures::{SinkExt, StreamExt};
-use tokio::sync::mpsc::{unbounded_channel};
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::connect_async;
+use tracing_subscriber::fmt::format;
 use url::Url;
 
 use socket_handler::SocketHandler;
@@ -25,7 +26,14 @@ async fn main() {
 
 async fn connect() {
     //connect async to the socket
-    let socket = match connect_async(Url::parse("ws://127.0.0.1:3030/socket/soft_client").unwrap()).await {
+    let socket = match connect_async(
+        Url::parse(&format!(
+            "ws://{}:{}/socket/{}",
+            env!("APP_DOMAIN"),
+            env!("APP_PORT"),
+            env!("APP_USERNAME")
+        )).unwrap()).await {
+
         Ok((socket, _)) => socket,
         Err(e) => {
             tracing::error!("Failed to connect to websocket: {}", e);

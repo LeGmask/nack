@@ -28,5 +28,5 @@ async fn main() {
 
     // let routes = index.or(chat);
 
-    warp::serve(socket).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(socket).run(([0, 0, 0, 0], 3030)).await;
 }

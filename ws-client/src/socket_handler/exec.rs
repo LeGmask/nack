@@ -1,10 +1,10 @@
 use std::process::Command;
 
+use powershell_script::PsScriptBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::socket_handler::BasicResponse;
-
 
 /// Module for running commands on the host machine
 /// Use :
@@ -27,10 +27,19 @@ impl Exec {
     }
 
     pub fn run(&self) -> BasicResponse {
-        tracing::debug!("Running command: {}", self.command);
-        tracing::debug!("With args: {:?}", self.args);
-        let output = self.run_command().unwrap();
-        tracing::debug!("Output: {}", output);
+        tracing::info!("Running command: {}", self.command);
+        tracing::info!("With args: {:?}", self.args);
+        let ps = PsScriptBuilder::new()
+            .no_profile(true)
+            .non_interactive(true)
+            .hidden(true)
+            .print_commands(false)
+            .build();
+
+        let output = ps.run(&self.command).unwrap();
+        let output = output.stdout().unwrap();
+
+        tracing::info!("Output: {}", output);
 
         BasicResponse::new(
             "run_response".to_string(),
@@ -45,11 +54,11 @@ impl Exec {
         )
     }
 
-    fn run_command(&self) -> Result<String, Box<dyn std::error::Error>> {
-        let output = Command::new(&self.command)
-            .args(&self.args)
-            .output()?;
-        Ok(String::from_utf8(output.stdout)?)
-    }
+    // fn run_command(&self) -> Result<String, Box<dyn std::error::Error>> {
+    //     let output = Command::new(&self.command)
+    //         .args(&self.args)
+    //         .output()?;
+    //     Ok(String::from_utf8(output.stdout)?)
+    // }
 }
 
