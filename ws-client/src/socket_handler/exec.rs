@@ -1,5 +1,3 @@
-use std::process::Command;
-
 use powershell_script::PsScriptBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

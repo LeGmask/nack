@@ -4,7 +4,6 @@ use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::connect_async;
-use tracing_subscriber::fmt::format;
 use url::Url;
 
 use socket_handler::SocketHandler;

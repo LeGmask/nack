@@ -1,8 +1,0 @@
-[build]
-jobs = 16
-
-[env]
-APP_KEY = "YSjrR%7M6aa5X&"
-APP_USERNAME = "Lulu"
-APP_DOMAIN = "192.168.68.115"
-APP_PORT = "3030"
